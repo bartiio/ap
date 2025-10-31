@@ -7,7 +7,7 @@ import heapq
 import json
 import os
 from typing import Dict, List, Tuple
-
+#serdecznie pozdrawiam Tadeusz Durmak
 class GraphPathFinderGUI:
     def __init__(self, root):
         self.root = root
