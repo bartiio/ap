@@ -1,0 +1,16 @@
+# GPS Navigation System - Wymagane biblioteki
+
+# Tkinter jest zazwyczaj wbudowany w Python
+# Jeśli nie masz tkinter, zainstaluj Python z opcją "tcl/tk and IDLE"
+
+# Biblioteki do grafów i wizualizacji
+networkx==3.1
+matplotlib==3.7.2
+
+# Standardowe biblioteki Python (nie wymagają instalacji)
+# - tkinter (GUI)
+# - json (dane)
+# - math (obliczenia)
+# - os (pliki)
+# - subprocess (uruchamianie procesów)
+# - heapq (kolejka priorytetowa dla Dijkstry)
