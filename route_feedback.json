@@ -125,5 +125,37 @@
     "reason": "crowded",
     "notes": "",
     "path_length": 1064
+  },
+  {
+    "timestamp": "2025-10-31 13:04:00",
+    "suggested_route": [
+      "19",
+      "1",
+      "2",
+      "3",
+      "23",
+      "25",
+      "17",
+      "16",
+      "15",
+      "14",
+      "37",
+      "36",
+      "35",
+      "34",
+      "33",
+      "32",
+      "26",
+      "27",
+      "28"
+    ],
+    "visited_nodes": [
+      "19",
+      "28"
+    ],
+    "deviated": true,
+    "reason": "shorter",
+    "notes": "",
+    "path_length": 522
   }
 ]

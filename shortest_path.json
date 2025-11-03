@@ -1,415 +1,653 @@
 {
   "shortest_path": {
-    "start_node": "58",
-    "end_node": "1",
+    "start_node": "0_6",
+    "end_node": "1_16",
     "path": [
-      "58",
-      "57",
-      "21",
-      "20",
-      "19",
-      "18",
-      "17",
-      "16",
-      "15",
-      "14",
-      "13",
-      "12",
-      "11",
-      "10",
-      "9",
-      "8",
-      "7",
-      "6",
-      "5",
-      "4",
-      "3",
-      "2",
-      "1"
+      "0_6",
+      "0_7",
+      "0_8",
+      "0_9",
+      "0_10",
+      "0_11",
+      "0_31",
+      "0_32",
+      "0_33",
+      "0_34",
+      "1_22",
+      "1_21",
+      "1_20",
+      "1_12",
+      "1_11",
+      "1_10",
+      "1_9",
+      "1_8",
+      "1_7",
+      "1_6",
+      "1_5",
+      "1_4",
+      "1_3",
+      "1_14",
+      "1_15",
+      "1_16"
     ],
-    "total_distance": 1186.88,
-    "number_of_steps": 22
+    "total_distance": 1262.69,
+    "number_of_steps": 25,
+    "floor_transitions": [
+      "🪜 Schody główne: Parter → Piętro 1"
+    ]
   },
   "path_segments": [
     {
-      "from": "58",
-      "to": "57",
-      "distance": 62.67,
+      "from": "0_6",
+      "to": "0_7",
+      "distance": 40.0,
+      "from_floor": "0",
+      "to_floor": "0",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 960.67,
-        "y": 515.83
+        "x": 480,
+        "y": 340
       },
       "to_coords": {
-        "x": 898.0,
-        "y": 515.0
+        "x": 520,
+        "y": 340
       }
     },
     {
-      "from": "57",
-      "to": "21",
-      "distance": 51.01,
+      "from": "0_7",
+      "to": "0_8",
+      "distance": 60.0,
+      "from_floor": "0",
+      "to_floor": "0",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 898.0,
-        "y": 515.0
+        "x": 520,
+        "y": 340
       },
       "to_coords": {
-        "x": 847.0,
-        "y": 514.25
+        "x": 580,
+        "y": 340
       }
     },
     {
-      "from": "21",
-      "to": "20",
-      "distance": 58.91,
+      "from": "0_8",
+      "to": "0_9",
+      "distance": 44.72,
+      "from_floor": "0",
+      "to_floor": "0",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 847.0,
-        "y": 514.25
+        "x": 580,
+        "y": 340
       },
       "to_coords": {
-        "x": 807.0,
-        "y": 471.0
+        "x": 620,
+        "y": 320
       }
     },
     {
-      "from": "20",
-      "to": "19",
-      "distance": 46.08,
+      "from": "0_9",
+      "to": "0_10",
+      "distance": 60.0,
+      "from_floor": "0",
+      "to_floor": "0",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 807.0,
-        "y": 471.0
+        "x": 620,
+        "y": 320
       },
       "to_coords": {
-        "x": 831.0,
-        "y": 431.67
+        "x": 680,
+        "y": 320
       }
     },
     {
-      "from": "19",
-      "to": "18",
-      "distance": 60.84,
+      "from": "0_10",
+      "to": "0_11",
+      "distance": 60.0,
+      "from_floor": "0",
+      "to_floor": "0",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 831.0,
-        "y": 431.67
+        "x": 680,
+        "y": 320
       },
       "to_coords": {
-        "x": 810.17,
-        "y": 374.5
+        "x": 740,
+        "y": 320
       }
     },
     {
-      "from": "18",
-      "to": "17",
-      "distance": 59.82,
+      "from": "0_11",
+      "to": "0_31",
+      "distance": 40.0,
+      "from_floor": "0",
+      "to_floor": "0",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 810.17,
-        "y": 374.5
+        "x": 740,
+        "y": 320
       },
       "to_coords": {
-        "x": 750.5,
-        "y": 370.17
+        "x": 780,
+        "y": 320
       }
     },
     {
-      "from": "17",
-      "to": "16",
-      "distance": 45.18,
+      "from": "0_31",
+      "to": "0_32",
+      "distance": 60.0,
+      "from_floor": "0",
+      "to_floor": "0",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 750.5,
-        "y": 370.17
+        "x": 780,
+        "y": 320
       },
       "to_coords": {
-        "x": 706.0,
-        "y": 378.0
+        "x": 840,
+        "y": 320
       }
     },
     {
-      "from": "16",
-      "to": "15",
-      "distance": 46.18,
+      "from": "0_32",
+      "to": "0_33",
+      "distance": 60.0,
+      "from_floor": "0",
+      "to_floor": "0",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 706.0,
-        "y": 378.0
+        "x": 840,
+        "y": 320
       },
       "to_coords": {
-        "x": 659.83,
-        "y": 379.17
+        "x": 840,
+        "y": 380
       }
     },
     {
-      "from": "15",
-      "to": "14",
-      "distance": 67.87,
+      "from": "0_33",
+      "to": "0_34",
+      "distance": 60.0,
+      "from_floor": "0",
+      "to_floor": "0",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 659.83,
-        "y": 379.17
+        "x": 840,
+        "y": 380
       },
       "to_coords": {
-        "x": 592.0,
-        "y": 381.25
+        "x": 840,
+        "y": 440
       }
     },
     {
-      "from": "14",
-      "to": "13",
-      "distance": 73.12,
+      "from": "0_34",
+      "to": "1_22",
+      "distance": 30,
+      "from_floor": "0",
+      "to_floor": "1",
+      "is_floor_transition": true,
+      "transition_type": "stairs",
+      "transition_name": "Schody główne",
       "from_coords": {
-        "x": 592.0,
-        "y": 381.25
+        "x": 840,
+        "y": 440
       },
       "to_coords": {
-        "x": 519.0,
-        "y": 385.5
+        "x": 800,
+        "y": 480
       }
     },
     {
-      "from": "13",
-      "to": "12",
-      "distance": 57.4,
+      "from": "1_22",
+      "to": "1_21",
+      "distance": 44.72,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 519.0,
-        "y": 385.5
+        "x": 800,
+        "y": 480
       },
       "to_coords": {
-        "x": 461.83,
-        "y": 380.33
+        "x": 820,
+        "y": 440
       }
     },
     {
-      "from": "12",
-      "to": "11",
-      "distance": 42.71,
+      "from": "1_21",
+      "to": "1_20",
+      "distance": 40.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 461.83,
-        "y": 380.33
+        "x": 820,
+        "y": 440
       },
       "to_coords": {
-        "x": 419.5,
-        "y": 386.0
+        "x": 820,
+        "y": 400
       }
     },
     {
-      "from": "11",
-      "to": "10",
-      "distance": 53.86,
+      "from": "1_20",
+      "to": "1_12",
+      "distance": 40.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 419.5,
-        "y": 386.0
+        "x": 820,
+        "y": 400
       },
       "to_coords": {
-        "x": 365.8,
-        "y": 381.8
+        "x": 820,
+        "y": 360
       }
     },
     {
-      "from": "10",
-      "to": "9",
-      "distance": 53.47,
+      "from": "1_12",
+      "to": "1_11",
+      "distance": 63.25,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 365.8,
-        "y": 381.8
+        "x": 820,
+        "y": 360
       },
       "to_coords": {
-        "x": 312.5,
-        "y": 386.0
+        "x": 760,
+        "y": 340
       }
     },
     {
-      "from": "9",
-      "to": "8",
-      "distance": 52.7,
+      "from": "1_11",
+      "to": "1_10",
+      "distance": 40.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 312.5,
-        "y": 386.0
+        "x": 760,
+        "y": 340
       },
       "to_coords": {
-        "x": 264.5,
-        "y": 364.25
+        "x": 720,
+        "y": 340
       }
     },
     {
-      "from": "8",
-      "to": "7",
-      "distance": 61.6,
+      "from": "1_10",
+      "to": "1_9",
+      "distance": 60.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 264.5,
-        "y": 364.25
+        "x": 720,
+        "y": 340
       },
       "to_coords": {
-        "x": 206.5,
-        "y": 385.0
+        "x": 660,
+        "y": 340
       }
     },
     {
-      "from": "7",
-      "to": "6",
-      "distance": 54.63,
+      "from": "1_9",
+      "to": "1_8",
+      "distance": 60.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 206.5,
-        "y": 385.0
+        "x": 660,
+        "y": 340
       },
       "to_coords": {
-        "x": 153.5,
-        "y": 371.75
+        "x": 600,
+        "y": 340
       }
     },
     {
-      "from": "6",
-      "to": "5",
-      "distance": 45.35,
+      "from": "1_8",
+      "to": "1_7",
+      "distance": 40.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 153.5,
-        "y": 371.75
+        "x": 600,
+        "y": 340
       },
       "to_coords": {
-        "x": 110.33,
-        "y": 385.67
+        "x": 560,
+        "y": 340
       }
     },
     {
-      "from": "5",
-      "to": "4",
-      "distance": 46.8,
+      "from": "1_7",
+      "to": "1_6",
+      "distance": 60.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 110.33,
-        "y": 385.67
+        "x": 560,
+        "y": 340
       },
       "to_coords": {
-        "x": 63.67,
-        "y": 382.17
+        "x": 500,
+        "y": 340
       }
     },
     {
-      "from": "4",
-      "to": "3",
-      "distance": 53.37,
+      "from": "1_6",
+      "to": "1_5",
+      "distance": 40.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 63.67,
-        "y": 382.17
+        "x": 500,
+        "y": 340
       },
       "to_coords": {
-        "x": 59.0,
-        "y": 329.0
+        "x": 460,
+        "y": 340
       }
     },
     {
-      "from": "3",
-      "to": "2",
-      "distance": 47.27,
+      "from": "1_5",
+      "to": "1_4",
+      "distance": 40.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 59.0,
-        "y": 329.0
+        "x": 460,
+        "y": 340
       },
       "to_coords": {
-        "x": 54.0,
-        "y": 282.0
+        "x": 420,
+        "y": 340
       }
     },
     {
-      "from": "2",
-      "to": "1",
-      "distance": 46.04,
+      "from": "1_4",
+      "to": "1_3",
+      "distance": 60.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
       "from_coords": {
-        "x": 54.0,
-        "y": 282.0
+        "x": 420,
+        "y": 340
       },
       "to_coords": {
-        "x": 52.0,
-        "y": 236.0
+        "x": 360,
+        "y": 340
+      }
+    },
+    {
+      "from": "1_3",
+      "to": "1_14",
+      "distance": 60.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
+      "from_coords": {
+        "x": 360,
+        "y": 340
+      },
+      "to_coords": {
+        "x": 360,
+        "y": 400
+      }
+    },
+    {
+      "from": "1_14",
+      "to": "1_15",
+      "distance": 40.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
+      "from_coords": {
+        "x": 360,
+        "y": 400
+      },
+      "to_coords": {
+        "x": 360,
+        "y": 440
+      }
+    },
+    {
+      "from": "1_15",
+      "to": "1_16",
+      "distance": 60.0,
+      "from_floor": "1",
+      "to_floor": "1",
+      "is_floor_transition": false,
+      "from_coords": {
+        "x": 360,
+        "y": 440
+      },
+      "to_coords": {
+        "x": 360,
+        "y": 500
       }
     }
   ],
   "nodes_coordinates": {
-    "58": {
-      "x": 960.67,
-      "y": 515.83
+    "0_6": {
+      "x": 480,
+      "y": 340,
+      "floor": "0",
+      "floor_name": "Parter",
+      "point_id": "6",
+      "point_label": ""
     },
-    "57": {
-      "x": 898.0,
-      "y": 515.0
+    "0_7": {
+      "x": 520,
+      "y": 340,
+      "floor": "0",
+      "floor_name": "Parter",
+      "point_id": "7",
+      "point_label": ""
     },
-    "21": {
-      "x": 847.0,
-      "y": 514.25
+    "0_8": {
+      "x": 580,
+      "y": 340,
+      "floor": "0",
+      "floor_name": "Parter",
+      "point_id": "8",
+      "point_label": ""
     },
-    "20": {
-      "x": 807.0,
-      "y": 471.0
+    "0_9": {
+      "x": 620,
+      "y": 320,
+      "floor": "0",
+      "floor_name": "Parter",
+      "point_id": "9",
+      "point_label": ""
     },
-    "19": {
-      "x": 831.0,
-      "y": 431.67
+    "0_10": {
+      "x": 680,
+      "y": 320,
+      "floor": "0",
+      "floor_name": "Parter",
+      "point_id": "10",
+      "point_label": ""
     },
-    "18": {
-      "x": 810.17,
-      "y": 374.5
+    "0_11": {
+      "x": 740,
+      "y": 320,
+      "floor": "0",
+      "floor_name": "Parter",
+      "point_id": "11",
+      "point_label": ""
     },
-    "17": {
-      "x": 750.5,
-      "y": 370.17
+    "0_31": {
+      "x": 780,
+      "y": 320,
+      "floor": "0",
+      "floor_name": "Parter",
+      "point_id": "31",
+      "point_label": ""
     },
-    "16": {
-      "x": 706.0,
-      "y": 378.0
+    "0_32": {
+      "x": 840,
+      "y": 320,
+      "floor": "0",
+      "floor_name": "Parter",
+      "point_id": "32",
+      "point_label": ""
     },
-    "15": {
-      "x": 659.83,
-      "y": 379.17
+    "0_33": {
+      "x": 840,
+      "y": 380,
+      "floor": "0",
+      "floor_name": "Parter",
+      "point_id": "33",
+      "point_label": ""
     },
-    "14": {
-      "x": 592.0,
-      "y": 381.25
+    "0_34": {
+      "x": 840,
+      "y": 440,
+      "floor": "0",
+      "floor_name": "Parter",
+      "point_id": "34",
+      "point_label": ""
     },
-    "13": {
-      "x": 519.0,
-      "y": 385.5
+    "1_22": {
+      "x": 800,
+      "y": 480,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "22",
+      "point_label": ""
     },
-    "12": {
-      "x": 461.83,
-      "y": 380.33
+    "1_21": {
+      "x": 820,
+      "y": 440,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "21",
+      "point_label": ""
     },
-    "11": {
-      "x": 419.5,
-      "y": 386.0
+    "1_20": {
+      "x": 820,
+      "y": 400,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "20",
+      "point_label": ""
     },
-    "10": {
-      "x": 365.8,
-      "y": 381.8
+    "1_12": {
+      "x": 820,
+      "y": 360,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "12",
+      "point_label": ""
     },
-    "9": {
-      "x": 312.5,
-      "y": 386.0
+    "1_11": {
+      "x": 760,
+      "y": 340,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "11",
+      "point_label": ""
     },
-    "8": {
-      "x": 264.5,
-      "y": 364.25
+    "1_10": {
+      "x": 720,
+      "y": 340,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "10",
+      "point_label": ""
     },
-    "7": {
-      "x": 206.5,
-      "y": 385.0
+    "1_9": {
+      "x": 660,
+      "y": 340,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "9",
+      "point_label": ""
     },
-    "6": {
-      "x": 153.5,
-      "y": 371.75
+    "1_8": {
+      "x": 600,
+      "y": 340,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "8",
+      "point_label": ""
     },
-    "5": {
-      "x": 110.33,
-      "y": 385.67
+    "1_7": {
+      "x": 560,
+      "y": 340,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "7",
+      "point_label": ""
     },
-    "4": {
-      "x": 63.67,
-      "y": 382.17
+    "1_6": {
+      "x": 500,
+      "y": 340,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "6",
+      "point_label": ""
     },
-    "3": {
-      "x": 59.0,
-      "y": 329.0
+    "1_5": {
+      "x": 460,
+      "y": 340,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "5",
+      "point_label": ""
     },
-    "2": {
-      "x": 54.0,
-      "y": 282.0
+    "1_4": {
+      "x": 420,
+      "y": 340,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "4",
+      "point_label": ""
     },
-    "1": {
-      "x": 52.0,
-      "y": 236.0
+    "1_3": {
+      "x": 360,
+      "y": 340,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "3",
+      "point_label": ""
+    },
+    "1_14": {
+      "x": 360,
+      "y": 400,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "14",
+      "point_label": ""
+    },
+    "1_15": {
+      "x": 360,
+      "y": 440,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "15",
+      "point_label": ""
+    },
+    "1_16": {
+      "x": 360,
+      "y": 500,
+      "floor": "1",
+      "floor_name": "Piętro 1",
+      "point_id": "16",
+      "point_label": ""
     }
   }
 }

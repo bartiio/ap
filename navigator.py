@@ -9,10 +9,17 @@ from typing import Dict, List, Tuple, Optional
 class GPSNavigator:
     def __init__(self, root):
         self.root = root
-        self.root.title("GPS Navigator - Nawigacja po ścieżce")
+        self.root.title("GPS Navigator - Nawigacja wielopiętrowa")
         self.root.geometry("1000x800")
         
-        # Dane
+        # Multi-floor support
+        self.floors = {}  # Dane wszystkich pięter
+        self.floor_transitions = []  # Przejścia między piętrami
+        self.building_info = {}
+        self.current_floor = "0"  # Aktualne piętro użytkownika
+        self.route_floor = "0"  # Piętro pokazywane na mapie (dla trasy)
+        
+        # Dane (legacy dla pojedynczego piętra)
         self.all_paths = []
         self.all_connections = []
         self.shortest_path = []
@@ -43,6 +50,10 @@ class GPSNavigator:
         
         # Tryb wolnej eksploracji
         self.free_exploration_mode = False
+        
+        # Alerty dla przejść między piętrami
+        self.floor_transition_alert_shown = False
+        self.next_transition = None  # Następne przejście na trasie
         
         self.setup_ui()
         
@@ -98,6 +109,18 @@ class GPSNavigator:
         tk.Checkbutton(top_frame, text="Włączone", variable=self.auto_update_var,
                       bg='#f0f0f0', font=('Arial', 9, 'bold'),
                       activebackground='#f0f0f0').pack(side=tk.LEFT)
+        
+        tk.Frame(top_frame, width=2, bg='gray').pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        
+        # Wybór piętra
+        tk.Label(top_frame, text="🏢 Piętro:", 
+                bg='#f0f0f0', font=('Arial', 10, 'bold')).pack(side=tk.LEFT, padx=5)
+        
+        self.floor_var = tk.StringVar(value="0")
+        self.floor_combo = ttk.Combobox(top_frame, textvariable=self.floor_var,
+                                        values=["0"], width=15, state='readonly')
+        self.floor_combo.pack(side=tk.LEFT, padx=5)
+        self.floor_combo.bind('<<ComboboxSelected>>', self.on_floor_changed)
         
         tk.Frame(top_frame, width=2, bg='gray').pack(side=tk.LEFT, fill=tk.Y, padx=10)
         
@@ -188,7 +211,7 @@ class GPSNavigator:
         self.sampling_label['text'] = f"co {value}"
         
     def load_map(self):
-        """Automatycznie wczytuje mapę z gps_paths.json"""
+        """Automatycznie wczytuje mapę z gps_paths.json (multi-floor support)"""
         filename = "gps_paths.json"
         
         if not os.path.exists(filename):
@@ -203,26 +226,97 @@ class GPSNavigator:
             with open(filename, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
-            self.all_paths = data.get('paths', [])
-            self.all_connections = data.get('connections', [])
-            
-            # Wczytaj etykiety punktów jeśli istnieją
-            self.point_labels = data.get('point_labels', {})
-            
-            print(f"✓ Automatycznie wczytano mapę: {filename}")
-            print(f"  Ścieżki: {len(self.all_paths)}")
-            print(f"  Połączenia: {len(self.all_connections)}")
-            print(f"  Etykiety: {len(self.point_labels)}")
-            
-            self.draw_map()
-            return True
+            # Sprawdź czy to nowy format wielopiętrowy
+            if 'floors' in data and 'building_info' in data:
+                # Nowy format - multi-floor
+                self.floors = data.get('floors', {})
+                self.floor_transitions = data.get('floor_transitions', [])
+                self.building_info = data.get('building_info', {})
+                
+                # Ustaw domyślne piętro
+                floor_list = list(self.floors.keys())
+                if floor_list:
+                    self.current_floor = floor_list[0]
+                    self.route_floor = floor_list[0]
+                    
+                    # Zaktualizuj combobox
+                    floor_names = [f"{f} - {self.building_info.get('floor_names', {}).get(f, f'Piętro {f}')}" 
+                                  for f in floor_list]
+                    self.floor_combo['values'] = floor_names
+                    self.floor_combo.set(floor_names[0])
+                    
+                    # Wczytaj dane aktualnego piętra
+                    self.load_floor_data(self.current_floor)
+                
+                print(f"✓ Wczytano budynek wielopiętrowy: {filename}")
+                print(f"  Piętra: {len(self.floors)}")
+                print(f"  Przejścia: {len(self.floor_transitions)}")
+                
+                self.draw_map()
+                return True
+            else:
+                # Stary format - single floor
+                self.all_paths = data.get('paths', [])
+                self.all_connections = data.get('connections', [])
+                self.point_labels = data.get('point_labels', {})
+                
+                # Konwertuj na multi-floor
+                self.floors = {
+                    "0": {
+                        "paths": self.all_paths,
+                        "connections": self.all_connections,
+                        "point_labels": self.point_labels
+                    }
+                }
+                self.floor_transitions = []
+                self.building_info = {"name": "Budynek", "floors": ["0"], "floor_names": {"0": "Parter"}}
+                self.current_floor = "0"
+                
+                print(f"✓ Wczytano mapę (stary format): {filename}")
+                print(f"  Ścieżki: {len(self.all_paths)}")
+                print(f"  Połączenia: {len(self.all_connections)}")
+                
+                self.draw_map()
+                return True
             
         except Exception as e:
             messagebox.showerror("Błąd", f"Nie udało się wczytać mapy:\n{e}")
             return False
     
+    def load_floor_data(self, floor_id):
+        """Wczytuje dane konkretnego piętra do zmiennych roboczych"""
+        if floor_id not in self.floors:
+            return
+        
+        floor_data = self.floors[floor_id]
+        self.all_paths = floor_data.get('paths', [])
+        self.all_connections = floor_data.get('connections', [])
+        self.point_labels = floor_data.get('point_labels', {})
+    
+    def on_floor_changed(self, event=None):
+        """Obsługa zmiany wybranego piętra"""
+        selected = self.floor_combo.get()
+        if not selected:
+            return
+        
+        # Wyciągnij ID piętra (przed " - ")
+        floor_id = selected.split(' - ')[0]
+        
+        if floor_id in self.floors:
+            self.current_floor = floor_id
+            self.route_floor = floor_id
+            self.load_floor_data(floor_id)
+            
+            # Przerysuj mapę
+            self.canvas.delete('all')
+            self.draw_map()
+            
+            # Jeśli jest trasa, przerysuj ją dla nowego piętra
+            if self.shortest_path:
+                self.draw_route()
+    
     def load_route(self):
-        """Automatycznie wczytuje trasę z shortest_path.json"""
+        """Automatycznie wczytuje trasę z shortest_path.json (multi-floor support)"""
         filename = "shortest_path.json"
         
         if not os.path.exists(filename):
@@ -244,22 +338,52 @@ class GPSNavigator:
                 messagebox.showwarning("Pusta trasa", "Nie znaleziono trasy w pliku!")
                 return False
             
-            # Przygotuj ładne nazwy tras
+            # Wykryj przejścia między piętrami na trasie
+            floor_transitions_on_route = path_data.get('floor_transitions', [])
+            
+            # Określ piętro startowe (pierwsze piętro na trasie)
+            if self.shortest_path and '_' in self.shortest_path[0]:
+                start_floor = self.shortest_path[0].split('_')[0]
+                self.current_floor = start_floor
+                self.route_floor = start_floor
+                
+                # Ustaw combobox na właściwe piętro
+                floor_list = list(self.floors.keys())
+                if start_floor in floor_list:
+                    idx = floor_list.index(start_floor)
+                    floor_names = self.floor_combo['values']
+                    if idx < len(floor_names):
+                        self.floor_combo.set(floor_names[idx])
+                        self.load_floor_data(start_floor)
+            
+            # Przygotuj ładne nazwy tras (obsługa multi-floor ID)
             start_id = self.shortest_path[0]
             end_id = self.shortest_path[-1]
-            start_label = self.point_labels.get(start_id, f"Punkt {start_id}")
-            end_label = self.point_labels.get(end_id, f"Punkt {end_id}")
+            
+            # Usuń prefix piętra jeśli istnieje
+            start_point = start_id.split('_')[-1] if '_' in start_id else start_id
+            end_point = end_id.split('_')[-1] if '_' in end_id else end_id
+            
+            start_label = self.point_labels.get(start_point, f"Punkt {start_point}")
+            end_label = self.point_labels.get(end_point, f"Punkt {end_point}")
             
             print(f"✓ Automatycznie wczytano trasę: {filename}")
-            print(f"  Start: {start_label}")
-            print(f"  Cel: {end_label}")
+            print(f"  Start: {start_label} (węzeł: {start_id})")
+            print(f"  Cel: {end_label} (węzeł: {end_id})")
             print(f"  Punkty: {len(self.shortest_path)}")
+            if floor_transitions_on_route:
+                print(f"  Zmiany pięter: {len(floor_transitions_on_route)}")
+                for trans in floor_transitions_on_route:
+                    print(f"    • {trans}")
             
             self.draw_route()
             return True
             
         except Exception as e:
             messagebox.showerror("Błąd", f"Nie udało się wczytać trasy:\n{e}")
+            print(f"ERROR: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def draw_map(self):
@@ -292,37 +416,79 @@ class GPSNavigator:
         return None
     
     def draw_route(self):
-        """Rysuje trasę do przejścia"""
+        """Rysuje trasę do przejścia (tylko punkty z aktualnego piętra)"""
         if not self.nodes_coords:
             return
         
         # Usuń poprzednią trasę
         self.canvas.delete('route')
         self.canvas.delete('markers')
+        self.canvas.delete('floor_transition_marker')
         
-        # Rysuj trasę jako czerwoną linię
+        # Filtruj punkty do aktualnego piętra
+        route_on_floor = []
+        for node in self.shortest_path:
+            if '_' in node:
+                node_floor = node.split('_')[0]
+                if node_floor == self.route_floor:
+                    route_on_floor.append(node)
+            else:
+                # Stary format bez prefiksu piętra
+                route_on_floor.append(node)
+        
+        # Rysuj trasę jako czerwoną linię (tylko w obrębie piętra)
         for i in range(len(self.shortest_path) - 1):
             node_from = self.shortest_path[i]
             node_to = self.shortest_path[i + 1]
             
-            if node_from in self.nodes_coords and node_to in self.nodes_coords:
-                from_coords = self.nodes_coords[node_from]
-                to_coords = self.nodes_coords[node_to]
+            # Sprawdź czy oba punkty są na tym samym piętrze
+            if '_' in node_from and '_' in node_to:
+                floor_from = node_from.split('_')[0]
+                floor_to = node_to.split('_')[0]
                 
-                self.canvas.create_line(
-                    from_coords['x'], from_coords['y'],
-                    to_coords['x'], to_coords['y'],
-                    fill='red', width=5, tags='route'
-                )
+                # Rysuj tylko jeśli oba na aktualnym piętrze
+                if floor_from == self.route_floor and floor_to == self.route_floor:
+                    if node_from in self.nodes_coords and node_to in self.nodes_coords:
+                        from_coords = self.nodes_coords[node_from]
+                        to_coords = self.nodes_coords[node_to]
+                        
+                        self.canvas.create_line(
+                            from_coords['x'], from_coords['y'],
+                            to_coords['x'], to_coords['y'],
+                            fill='red', width=5, tags='route'
+                        )
+            else:
+                # Stary format
+                if node_from in self.nodes_coords and node_to in self.nodes_coords:
+                    from_coords = self.nodes_coords[node_from]
+                    to_coords = self.nodes_coords[node_to]
+                    
+                    self.canvas.create_line(
+                        from_coords['x'], from_coords['y'],
+                        to_coords['x'], to_coords['y'],
+                        fill='red', width=5, tags='route'
+                    )
         
-        # Zaznacz punkty
+        # Zaznacz punkty (tylko z aktualnego piętra)
         for i, node in enumerate(self.shortest_path):
+            # Sprawdź czy punkt jest na aktualnym piętrze
+            if '_' in node:
+                node_floor = node.split('_')[0]
+                if node_floor != self.route_floor:
+                    continue
+                node_id = node.split('_')[1]
+            else:
+                node_id = node
+            
             if node in self.nodes_coords:
                 coords = self.nodes_coords[node]
                 x, y = coords['x'], coords['y']
                 
                 # Pobierz etykietę jeśli istnieje
-                label = self.point_labels.get(node, f"#{node}")
+                label = self.point_labels.get(node_id, f"#{node_id}")
+                
+                # Sprawdź czy to punkt przejścia między piętrami
+                is_transition = self.is_floor_transition_point(node, i)
                 
                 if i == 0:  # Start
                     self.canvas.create_oval(x-10, y-10, x+10, y+10,
@@ -338,15 +504,46 @@ class GPSNavigator:
                     self.canvas.create_text(x, y-20, text=f'CEL\n{label}',
                                           fill='red', font=('Arial', 9, 'bold'),
                                           tags='markers')
+                elif is_transition:  # Punkt przejścia między piętrami
+                    self.canvas.create_rectangle(x-12, y-12, x+12, y+12,
+                                                fill='purple', outline='darkviolet',
+                                                width=3, tags='floor_transition_marker')
+                    trans_icon = "🪜" if is_transition == "stairs" else "🛗"
+                    self.canvas.create_text(x, y-18, text=f'{trans_icon}\n{label}',
+                                          fill='purple', font=('Arial', 9, 'bold'),
+                                          tags='floor_transition_marker')
                 else:  # Punkt pośredni
                     self.canvas.create_oval(x-6, y-6, x+6, y+6,
                                           fill='orange', outline='darkorange',
                                           width=2, tags='markers')
                     # Pokazuj etykietę dla punktów pośrednich jeśli istnieje
-                    if node in self.point_labels:
+                    if node_id in self.point_labels:
                         self.canvas.create_text(x, y-12, text=label,
                                               fill='orange', font=('Arial', 7),
                                               tags='markers')
+    
+    def is_floor_transition_point(self, node, node_index):
+        """Sprawdza czy punkt jest przejściem między piętrami"""
+        if node_index >= len(self.shortest_path) - 1:
+            return False
+        
+        current_node = self.shortest_path[node_index]
+        next_node = self.shortest_path[node_index + 1]
+        
+        if '_' in current_node and '_' in next_node:
+            current_floor = current_node.split('_')[0]
+            next_floor = next_node.split('_')[0]
+            
+            if current_floor != next_floor:
+                # Znajdź typ przejścia
+                for segment in self.path_segments:
+                    if (segment.get('from') == current_node and 
+                        segment.get('to') == next_node and
+                        segment.get('is_floor_transition', False)):
+                        return segment.get('transition_type', 'stairs')
+                return 'stairs'  # Domyślnie schody
+        
+        return False
     
     def start_navigation(self):
         """Rozpoczyna nawigację"""
@@ -534,6 +731,93 @@ class GPSNavigator:
                 self.check_route_compliance()
                 return
         
+        # PRIORYTET 1.5: Sprawdź czy zbliża się przejście między piętrami
+        if self.current_path_index < len(self.shortest_path) - 1:
+            current_node = self.shortest_path[self.current_path_index]
+            next_node = self.shortest_path[self.current_path_index + 1]
+            
+            # Sprawdź czy następny krok to zmiana piętra
+            if '_' in current_node and '_' in next_node:
+                current_floor = current_node.split('_')[0]
+                next_floor = next_node.split('_')[0]
+                
+                if current_floor != next_floor:
+                    # To jest przejście między piętrami!
+                    if current_node in self.nodes_coords:
+                        trans_coords = self.nodes_coords[current_node]
+                        trans_x, trans_y = trans_coords['x'], trans_coords['y']
+                        user_x, user_y = self.user_position
+                        
+                        trans_distance = math.sqrt((trans_x - user_x)**2 + (trans_y - user_y)**2)
+                        
+                        # Jeśli blisko przejścia
+                        if trans_distance <= self.proximity_threshold * 1.5:  # Większy próg dla alertu
+                            trans_type = self.get_transition_type(current_node, next_node)
+                            trans_icon = "🪜" if trans_type == "stairs" else "🛗"
+                            floor_from_name = self.building_info.get('floor_names', {}).get(current_floor, f"Piętro {current_floor}")
+                            floor_to_name = self.building_info.get('floor_names', {}).get(next_floor, f"Piętro {next_floor}")
+                            
+                            self.nav_label['text'] = f"⚠️ {trans_icon} Zmiana piętra! {floor_from_name} → {floor_to_name}"
+                            self.distance_label['text'] = f"Przejdź przez {trans_type} ({trans_distance:.1f} px)"
+                            
+                            # Po dotarciu do punktu przejścia - zaproponuj zmianę piętra
+                            if trans_distance <= self.proximity_threshold:
+                                if not self.floor_transition_alert_shown:
+                                    self.floor_transition_alert_shown = True
+                                    
+                                    # WAŻNE: Oznacz punkt przejścia jako odwiedzony PRZED zmianą piętra
+                                    if current_node not in self.visited_nodes:
+                                        self.visited_nodes.append(current_node)
+                                        print(f"✓ Punkt przejścia odwiedzony: {current_node}")
+                                    
+                                    result = messagebox.askyesno(
+                                        "Zmiana piętra",
+                                        f"Dotarłeś do przejścia między piętrami!\n\n"
+                                        f"{trans_icon} Typ: {trans_type}\n"
+                                        f"Z: {floor_from_name}\n"
+                                        f"Do: {floor_to_name}\n\n"
+                                        f"Czy chcesz przełączyć widok na {floor_to_name}?"
+                                    )
+                                    
+                                    if result:
+                                        # Przejdź do następnego punktu (na nowym piętrze)
+                                        self.current_path_index += 1
+                                        
+                                        # Zmień piętro
+                                        self.current_floor = next_floor
+                                        self.route_floor = next_floor
+                                        
+                                        # Zaktualizuj combobox
+                                        floor_list = list(self.floors.keys())
+                                        if next_floor in floor_list:
+                                            idx = floor_list.index(next_floor)
+                                            floor_names = self.floor_combo['values']
+                                            if idx < len(floor_names):
+                                                self.floor_combo.set(floor_names[idx])
+                                        
+                                        # Wczytaj dane nowego piętra
+                                        self.load_floor_data(next_floor)
+                                        
+                                        # Wyczyść pozycję użytkownika na nowym piętrze
+                                        self.user_position = None
+                                        self.canvas.delete('user_marker')
+                                        self.canvas.delete('user_path')
+                                        
+                                        # Przerysuj mapę
+                                        self.canvas.delete('all')
+                                        self.draw_map()
+                                        self.draw_route()
+                                        
+                                        # Reset alertu
+                                        self.floor_transition_alert_shown = False
+                                        
+                                        messagebox.showinfo("Piętro zmienione", 
+                                                          f"Jesteś teraz na: {floor_to_name}\n\n"
+                                                          f"Zacznij rysować swoją pozycję na nowym piętrze\n"
+                                                          f"aby kontynuować nawigację do celu!")
+                                        return
+                            return
+        
         # PRIORYTET 2: Sprawdź postęp na sugerowanej trasie (punkty pośrednie)
         if self.current_path_index >= len(self.shortest_path):
             return
@@ -652,6 +936,9 @@ class GPSNavigator:
         # Sprawdź czy użytkownik odwiedził wszystkie punkty pośrednie
         all_nodes_visited = all(node in visited_nodes for node in expected_nodes)
         
+        # Znajdź brakujące punkty
+        missing_nodes = [node for node in expected_nodes if node not in visited_nodes]
+        
         # Sprawdź czy użytkownik odwiedził je w tej samej kolejności
         in_correct_order = True
         last_expected_index = -1
@@ -675,8 +962,39 @@ class GPSNavigator:
             print(f"    Zboczył z trasy: {self.deviated_from_route}")
             print(f"    Wszystkie punkty odwiedzone: {all_nodes_visited}")
             print(f"    Poprawna kolejność: {in_correct_order}")
+            print(f"    Brakujące punkty: {missing_nodes}")
             print(f"    Oczekiwane: {expected_nodes}")
             print(f"    Odwiedzone: {visited_nodes}")
+            
+            # Sprawdź czy brakujący punkt to tylko punkt przejścia na poprzednim piętrze
+            if len(missing_nodes) == 1 and '_' in missing_nodes[0]:
+                missing_node = missing_nodes[0]
+                # Sprawdź czy to punkt przejścia
+                is_transition = False
+                for i, node in enumerate(expected_nodes):
+                    if node == missing_node and i < len(expected_nodes) - 1:
+                        next_node = expected_nodes[i + 1]
+                        if '_' in next_node:
+                            missing_floor = missing_node.split('_')[0]
+                            next_floor = next_node.split('_')[0]
+                            if missing_floor != next_floor:
+                                is_transition = True
+                                print(f"    ℹ️ Brakujący punkt {missing_node} to punkt przejścia między piętrami")
+                                # Automatycznie dodaj ten punkt jako odwiedzony
+                                self.visited_nodes.append(missing_node)
+                                print(f"    ✓ Automatycznie oznaczono {missing_node} jako odwiedzony")
+                                
+                                # Sprawdź ponownie
+                                all_nodes_visited = all(node in self.visited_nodes for node in expected_nodes)
+                                if all_nodes_visited:
+                                    print(f"  ✓ Po korekcie: wszystkie punkty odwiedzone")
+                                    # Nie pokazuj dialogu odstępstwa
+                                    if self.auto_update_var.get():
+                                        self.update_map_with_user_path()
+                                    messagebox.showinfo("Sukces!", 
+                                                      "🎉 Gratulacje!\n\nDotarłeś do celu!\n\n"
+                                                      "Twoja trasa została dodana do mapy.")
+                                    return
             
             self.ask_deviation_reason()
         else:
@@ -1252,6 +1570,20 @@ class GPSNavigator:
         else:
             self.nav_label['text'] = "Wczytaj mapę i trasę aby rozpocząć nawigację"
             self.distance_label['text'] = ""
+    
+    def get_transition_type(self, from_node, to_node):
+        """Zwraca typ przejścia między piętrami (stairs/elevator)"""
+        for segment in self.path_segments:
+            if (segment.get('from') == from_node and 
+                segment.get('to') == to_node and
+                segment.get('is_floor_transition', False)):
+                trans_type = segment.get('transition_type', 'stairs')
+                if trans_type == 'stairs':
+                    return 'schody'
+                elif trans_type == 'elevator':
+                    return 'winda'
+                return trans_type
+        return 'schody'  # Domyślnie
     
     def return_to_menu(self):
         """Zamyka aplikację i wraca do menu głównego"""

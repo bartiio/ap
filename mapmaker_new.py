@@ -1,19 +1,29 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, ttk
 import math
 import json
 
 class GPSPathSimulator:
     def __init__(self, root):
         self.root = root
-        self.root.title("Symulator Ścieżek GPS - Symulacja chodzenia po obszarze")
+        self.root.title("Symulator Ścieżek GPS - Multi-Floor (Wiele Pięter)")
         
         # Parametry
         self.point_radius = 4
         self.path_distance = 15  # Dystans między punktami GPS
         self.merge_distance = 30  # Dystans do łączenia ścieżek
         
-        self.points = []  # Wszystkie punkty GPS
+        # Multi-floor support
+        self.current_floor = "0"  # Aktywne piętro
+        self.floors = {
+            "0": {"paths": [], "connections": [], "point_labels": {}, "next_id": 1},
+            "1": {"paths": [], "connections": [], "point_labels": {}, "next_id": 1},
+            "2": {"paths": [], "connections": [], "point_labels": {}, "next_id": 1}
+        }
+        self.floor_transitions = []  # Przejścia między piętrami
+        
+        # Legacy variables (for current floor)
+        self.points = []  # Wszystkie punkty GPS na aktywnym piętrze
         self.edges = []  # Połączenia między punktami
         self.paths = []  # Ścieżki użytkowników
         self.current_path = []  # Aktualnie rysowana ścieżka
@@ -42,8 +52,19 @@ class GPSPathSimulator:
         control_frame = tk.Frame(self.root, bg='#e8e8e8', pady=10)
         control_frame.pack(fill=tk.X)
         
+        # Wybór piętra
+        tk.Label(control_frame, text="🏢 Piętro:", bg='#e8e8e8', font=('Arial', 10, 'bold')).pack(side=tk.LEFT, padx=(20, 5))
+        self.floor_var = tk.StringVar(value=self.current_floor)
+        floor_combo = ttk.Combobox(control_frame, textvariable=self.floor_var, 
+                                    values=["0 (Parter)", "1 (Piętro 1)", "2 (Piętro 2)"],
+                                    state='readonly', width=15)
+        floor_combo.pack(side=tk.LEFT, padx=5)
+        floor_combo.bind('<<ComboboxSelected>>', self.change_floor)
+        
+        tk.Frame(control_frame, width=2, bg='gray').pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        
         # Gęstość punktów
-        tk.Label(control_frame, text="Gęstość:", bg='#e8e8e8', font=('Arial', 10)).pack(side=tk.LEFT, padx=(20, 5))
+        tk.Label(control_frame, text="Gęstość:", bg='#e8e8e8', font=('Arial', 10)).pack(side=tk.LEFT, padx=(10, 5))
         self.density_var = tk.IntVar(value=self.path_distance)
         tk.Scale(control_frame, from_=5, to=40, orient=tk.HORIZONTAL, 
                 variable=self.density_var, command=self.update_density, length=100).pack(side=tk.LEFT, padx=5)
@@ -54,19 +75,25 @@ class GPSPathSimulator:
         tk.Scale(control_frame, from_=10, to=80, orient=tk.HORIZONTAL,
                 variable=self.merge_var, command=self.update_merge, length=100).pack(side=tk.LEFT, padx=5)
         
+        # Druga linia przycisków
+        button_frame = tk.Frame(self.root, bg='#e8e8e8', pady=5)
+        button_frame.pack(fill=tk.X)
+        
         # Przyciski
-        tk.Button(control_frame, text="🔀 Połącz korytarze", command=self.merge_parallel_paths,
-                 font=('Arial', 10, 'bold'), bg='#9b59b6', fg='white', padx=10).pack(side=tk.LEFT, padx=10)
-        tk.Button(control_frame, text="📊 Statystyki", command=self.show_stats,
+        tk.Button(button_frame, text="🔀 Połącz korytarze", command=self.merge_parallel_paths,
+                 font=('Arial', 10, 'bold'), bg='#9b59b6', fg='white', padx=10).pack(side=tk.LEFT, padx=(20, 5))
+        tk.Button(button_frame, text="🔗 Dodaj przejście między piętrami", command=self.add_floor_transition,
+                 font=('Arial', 10, 'bold'), bg='#FF6B35', fg='white', padx=10).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="📊 Statystyki", command=self.show_stats,
                  font=('Arial', 10, 'bold'), bg='#95e1d3', fg='black', padx=10).pack(side=tk.LEFT, padx=5)
-        tk.Button(control_frame, text="💾 Zapisz", command=self.save_graph,
+        tk.Button(button_frame, text="💾 Zapisz", command=self.save_graph,
                  font=('Arial', 10, 'bold'), bg='#4ecdc4', fg='white', padx=10).pack(side=tk.LEFT, padx=5)
-        tk.Button(control_frame, text="🗑️ Wyczyść", command=self.clear_all,
+        tk.Button(button_frame, text="🗑️ Wyczyść piętro", command=self.clear_floor,
                  font=('Arial', 10, 'bold'), bg='#ff6b6b', fg='white', padx=10).pack(side=tk.LEFT, padx=5)
         
-        tk.Frame(control_frame, width=2, bg='gray').pack(side=tk.LEFT, fill=tk.Y, padx=10)
+        tk.Frame(button_frame, width=2, bg='gray').pack(side=tk.LEFT, fill=tk.Y, padx=10)
         
-        tk.Button(control_frame, text="⬅️ Menu", command=self.return_to_menu,
+        tk.Button(button_frame, text="⬅️ Menu", command=self.return_to_menu,
                  font=('Arial', 9, 'bold'), bg='#607D8B', fg='white', padx=10).pack(side=tk.LEFT, padx=5)
     
     def create_canvas(self):
@@ -97,6 +124,125 @@ class GPSPathSimulator:
         self.merge_distance = int(value)
         if len(self.paths) > 1 and old_merge != self.merge_distance:
             self.recalculate_connections()
+    
+    def change_floor(self, event=None):
+        """Zmiana aktywnego piętra"""
+        # Zapisz dane aktualnego piętra
+        self.save_current_floor_data()
+        
+        # Pobierz nowe piętro
+        floor_text = self.floor_var.get()
+        new_floor = floor_text.split()[0]  # "0 (Parter)" -> "0"
+        self.current_floor = new_floor
+        
+        # Załaduj dane nowego piętra
+        self.load_floor_data(new_floor)
+        
+        # Odśwież canvas
+        self.redraw_canvas()
+        self.update_status()
+        
+        messagebox.showinfo("Zmiana piętra", f"Przełączono na piętro {floor_text}")
+    
+    def save_current_floor_data(self):
+        """Zapisuje dane aktualnego piętra do struktury floors"""
+        # Zapisz również punkty razem ze ścieżkami
+        for path in self.paths:
+            path['point_coords'] = {}
+            for pid in path['points']:
+                point = next((p for p in self.points if p[2] == pid), None)
+                if point:
+                    path['point_coords'][str(pid)] = {'x': point[0], 'y': point[1]}
+        
+        floor_data = self.floors[self.current_floor]
+        floor_data['paths'] = self.paths
+        floor_data['connections'] = self.edges
+        floor_data['next_id'] = self.next_id
+    
+    def load_floor_data(self, floor):
+        """Ładuje dane wybranego piętra"""
+        floor_data = self.floors[floor]
+        self.paths = floor_data['paths']
+        self.edges = floor_data['connections']
+        self.next_id = floor_data['next_id']
+        
+        # Odbuduj listę punktów z paths
+        self.points = []
+        for path in self.paths:
+            self.points.extend(path['points'])
+    
+    def add_floor_transition(self):
+        """Dialog dodawania przejścia między piętrami (schody/winda)"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Dodaj przejście między piętrami")
+        dialog.geometry("400x350")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        tk.Label(dialog, text="Typ przejścia:", font=('Arial', 10, 'bold')).pack(pady=(10, 5))
+        transition_type = tk.StringVar(value="stairs")
+        ttk.Radiobutton(dialog, text="🪜 Schody", variable=transition_type, value="stairs").pack()
+        ttk.Radiobutton(dialog, text="🛗 Winda", variable=transition_type, value="elevator").pack()
+        
+        tk.Label(dialog, text="Nazwa:", font=('Arial', 10, 'bold')).pack(pady=(10, 5))
+        name_entry = tk.Entry(dialog, width=30)
+        name_entry.pack()
+        name_entry.insert(0, "Schody główne")
+        
+        tk.Label(dialog, text="Z piętra:", font=('Arial', 10, 'bold')).pack(pady=(10, 5))
+        from_floor_var = tk.StringVar(value="0")
+        ttk.Combobox(dialog, textvariable=from_floor_var, values=["0", "1", "2"], 
+                     state='readonly', width=10).pack()
+        
+        tk.Label(dialog, text="Na piętro:", font=('Arial', 10, 'bold')).pack(pady=(10, 5))
+        to_floor_var = tk.StringVar(value="1")
+        ttk.Combobox(dialog, textvariable=to_floor_var, values=["0", "1", "2"],
+                     state='readonly', width=10).pack()
+        
+        tk.Label(dialog, text="ID punktu na piętrze źródłowym:", font=('Arial', 10)).pack(pady=(10, 5))
+        from_point_entry = tk.Entry(dialog, width=15)
+        from_point_entry.pack()
+        
+        tk.Label(dialog, text="ID punktu na piętrze docelowym:", font=('Arial', 10)).pack(pady=(5, 5))
+        to_point_entry = tk.Entry(dialog, width=15)
+        to_point_entry.pack()
+        
+        def save_transition():
+            transition = {
+                "id": f"transition_{len(self.floor_transitions) + 1}",
+                "type": transition_type.get(),
+                "name": name_entry.get(),
+                "from_floor": from_floor_var.get(),
+                "to_floor": to_floor_var.get(),
+                "from_point": from_point_entry.get(),
+                "to_point": to_point_entry.get(),
+                "travel_time": 15 if transition_type.get() == "elevator" else 30
+            }
+            self.floor_transitions.append(transition)
+            messagebox.showinfo("Sukces", f"Dodano przejście: {transition['name']}")
+            dialog.destroy()
+        
+        tk.Button(dialog, text="💾 Zapisz przejście", command=save_transition,
+                 bg='#4CAF50', fg='white', font=('Arial', 10, 'bold'), padx=20, pady=8).pack(pady=15)
+    
+    def clear_floor(self):
+        """Wyczyść tylko aktualne piętro"""
+        result = messagebox.askyesno("Wyczyść piętro", 
+                                     f"Czy na pewno chcesz wyczyścić wszystkie ścieżki na piętrze {self.current_floor}?")
+        if result:
+            self.paths = []
+            self.edges = []
+            self.points = []
+            self.next_id = 1
+            self.floors[self.current_floor] = {
+                "paths": [], 
+                "connections": [], 
+                "point_labels": {},
+                "next_id": 1
+            }
+            self.redraw_canvas()
+            self.update_status()
+            messagebox.showinfo("Wyczyszczono", f"Piętro {self.current_floor} zostało wyczyszczone")
     
     def calculate_distance(self, p1, p2):
         """Odległość między punktami"""
@@ -200,6 +346,40 @@ class GPSPathSimulator:
         
         self.update_status()
     
+    def redraw_canvas(self):
+        """Odświeża canvas z danymi aktualnego piętra"""
+        self.canvas.delete('all')
+        
+        # Odtwórz instrukcje
+        self.canvas.create_text(self.canvas_width // 2, 30,
+            text="PRZECIĄGNIJ MYSZĄ ABY SYMULOWAĆ CHODZENIE I ZBIERANIE DANYCH GPS",
+            font=('Arial', 12, 'bold'), fill='#333', tags='instruction')
+        
+        self.canvas.create_text(self.canvas_width // 2, 60,
+            text=f"Piętro: {self.current_floor} | Każda linia = ślad GPS jednego użytkownika",
+            font=('Arial', 10), fill='#666', tags='instruction')
+        
+        # Przywróć bindowania zdarzeń
+        self.canvas.bind('<ButtonPress-1>', self.start_drawing)
+        self.canvas.bind('<B1-Motion>', self.draw_path)
+        self.canvas.bind('<ButtonRelease-1>', self.stop_drawing)
+        
+        # Narysuj połączenia (linie)
+        for id1, id2, dist in self.edges:
+            p1 = next((p for p in self.points if p[2] == id1), None)
+            p2 = next((p for p in self.points if p[2] == id2), None)
+            if p1 and p2:
+                self.canvas.create_line(p1[0], p1[1], p2[0], p2[1], 
+                                       fill='#bdc3c7', width=2, tags='edge')
+        
+        # Narysuj punkty
+        for x, y, pid, path_id in self.points:
+            path = next((p for p in self.paths if p['id'] == path_id), None)
+            color = path['color'] if path else '#3498db'
+            self.canvas.create_oval(x - self.point_radius, y - self.point_radius,
+                                   x + self.point_radius, y + self.point_radius,
+                                   fill=color, outline='white', width=1, tags='point')
+    
     def clear_all(self):
         """Czyści wszystko"""
         if len(self.points) == 0:
@@ -232,31 +412,61 @@ class GPSPathSimulator:
             self.update_status()
     
     def save_graph(self):
-        """Zapisuje graf do JSON"""
-        if len(self.points) == 0:
-            messagebox.showwarning("Brak danych", "Nie ma danych do zapisania!")
+        """Zapisuje graf do JSON w formacie wielopiętrowym"""
+        # Zapisz dane aktualnego piętra przed eksportem
+        self.save_current_floor_data()
+        
+        # Sprawdź czy są jakiekolwiek dane
+        total_points = sum(len(self.floors[f]['paths']) for f in self.floors)
+        if total_points == 0:
+            messagebox.showwarning("Brak danych", "Nie ma danych do zapisania!\nNarysuj ścieżki na przynajmniej jednym piętrze.")
             return
         
+        # Przygotuj strukturę wielopiętrową
+        floors_data = {}
+        for floor_id, floor_data in self.floors.items():
+            floors_data[floor_id] = {
+                'paths': [
+                    {
+                        'id': path['id'],
+                        'points': [
+                            {
+                                'id': pid, 
+                                'x': path.get('point_coords', {}).get(str(pid), {}).get('x', 0),
+                                'y': path.get('point_coords', {}).get(str(pid), {}).get('y', 0)
+                            }
+                            for pid in path['points']
+                        ],
+                        'color': path['color']
+                    }
+                    for path in floor_data['paths']
+                ],
+                'connections': [
+                    {'from': e[0], 'to': e[1], 'distance': round(e[2], 2)}
+                    for e in floor_data['connections']
+                ],
+                'point_labels': floor_data.get('point_labels', {})
+            }
+        
         graph_data = {
-            'paths': [
-                {
-                    'id': path['id'],
-                    'points': [
-                        {'id': pid, 'x': next((p[0] for p in self.points if p[2] == pid), 0),
-                         'y': next((p[1] for p in self.points if p[2] == pid), 0)}
-                        for pid in path['points']
-                    ],
-                    'color': path['color']
+            'building_info': {
+                'name': 'Budynek główny',
+                'floors': ['0', '1', '2'],
+                'floor_names': {
+                    '0': 'Parter',
+                    '1': 'Piętro 1',
+                    '2': 'Piętro 2'
                 }
-                for path in self.paths
-            ],
-            'connections': [
-                {'from': id1, 'to': id2, 'distance': round(dist, 2)}
-                for id1, id2, dist in self.edges
-            ],
-            'settings': {
-                'point_density': self.path_distance,
-                'merge_distance': self.merge_distance
+            },
+            'floors': floors_data,
+            'floor_transitions': self.floor_transitions,
+            'metadata': {
+                'version': '2.0',
+                'multifloor_support': True,
+                'settings': {
+                    'point_density': self.path_distance,
+                    'merge_distance': self.merge_distance
+                }
             }
         }
         
@@ -264,11 +474,18 @@ class GPSPathSimulator:
         with open(filename, 'w', encoding='utf-8') as f:
             json.dump(graph_data, f, indent=2, ensure_ascii=False)
         
+        # Statystyki
+        total_paths = sum(len(self.floors[f]['paths']) for f in self.floors)
+        total_connections = sum(len(self.floors[f]['connections']) for f in self.floors)
+        
         messagebox.showinfo("Zapisano", 
-            f"Ścieżki GPS zapisane do:\n{filename}\n\n"
-            f"Ścieżki: {len(self.paths)}\n"
-            f"Punkty GPS: {len(self.points)}\n"
-            f"Połączenia: {len(self.edges)}")
+            f"✓ Ścieżki GPS zapisane do: {filename}\n\n"
+            f"🏢 Budynek wielopiętrowy:\n"
+            f"   Piętro 0: {len(self.floors['0']['paths'])} ścieżek\n"
+            f"   Piętro 1: {len(self.floors['1']['paths'])} ścieżek\n"
+            f"   Piętro 2: {len(self.floors['2']['paths'])} ścieżek\n\n"
+            f"🔗 Przejścia między piętrami: {len(self.floor_transitions)}\n"
+            f"📊 Razem połączeń: {total_connections}")
     
     def show_stats(self):
         """Statystyki"""
@@ -326,8 +543,10 @@ USTAWIENIA:
     
     def update_status(self):
         """Aktualizuje status"""
+        floor_names = {"0": "Parter", "1": "Piętro 1", "2": "Piętro 2"}
         self.status_label.config(
-            text=f"Ścieżki: {len(self.paths)} | Punkty GPS: {len(self.points)} | "
+            text=f"🏢 {floor_names[self.current_floor]} | "
+                 f"Ścieżki: {len(self.paths)} | Punkty GPS: {len(self.points)} | "
                  f"Połączenia: {len(self.edges)} | Przeciągnij myszą aby dodać kolejną ścieżkę"
         )
     

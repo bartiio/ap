@@ -8,12 +8,18 @@ from typing import Dict, List, Tuple, Optional
 class MapManager:
     def __init__(self, root):
         self.root = root
-        self.root.title("Map Manager - Zarządzanie etykietami punktów")
+        self.root.title("Map Manager - Zarządzanie etykietami (Multi-Floor)")
         self.root.geometry("1200x800")
         
-        # Dane
+        # Dane - Multi-floor support
         self.map_data = None
         self.map_filename = None
+        self.current_floor = "0"  # Aktywne piętro
+        self.floors = {}  # Dane wszystkich pięter
+        self.floor_transitions = []  # Przejścia między piętrami
+        self.building_info = {}  # Informacje o budynku
+        
+        # Legacy - dla aktualnego piętra
         self.all_paths = []
         self.all_connections = []
         self.point_labels = {}  # ID punktu -> etykieta (np. "Sala 308")
@@ -42,9 +48,21 @@ class MapManager:
         
     def setup_ui(self):
         """Konfiguracja interfejsu użytkownika"""
-        # Panel górny - przyciski
+        # Panel górny - przyciski i wybór piętra
         top_frame = tk.Frame(self.root, bg='#f0f0f0', pady=10)
         top_frame.pack(side=tk.TOP, fill=tk.X)
+        
+        # Wybór piętra
+        tk.Label(top_frame, text="🏢 Piętro:", bg='#f0f0f0', 
+                font=('Arial', 10, 'bold')).pack(side=tk.LEFT, padx=(10, 5))
+        self.floor_var = tk.StringVar(value="0")
+        floor_combo = ttk.Combobox(top_frame, textvariable=self.floor_var,
+                                    values=["0 (Parter)", "1 (Piętro 1)", "2 (Piętro 2)"],
+                                    state='readonly', width=12)
+        floor_combo.pack(side=tk.LEFT, padx=5)
+        floor_combo.bind('<<ComboboxSelected>>', self.change_floor)
+        
+        tk.Frame(top_frame, width=2, bg='gray').pack(side=tk.LEFT, fill=tk.Y, padx=10)
         
         tk.Button(top_frame, text="💾 Zapisz wszystkie zmiany", 
                  command=self.save_all_changes,
@@ -94,9 +112,16 @@ class MapManager:
                  bg='#607D8B', fg='white', font=('Arial', 9, 'bold'),
                  padx=10, pady=8).pack(side=tk.LEFT, padx=5)
         
-        # Panel dolny - dodatkowe funkcje
+        # Panel dolny - dodatkowe funkcje i przejścia między piętrami
         bottom_frame = tk.Frame(self.root, bg='#f0f0f0', pady=10)
         bottom_frame.pack(side=tk.TOP, fill=tk.X)
+        
+        tk.Button(bottom_frame, text="🔗 Zarządzaj przejściami", 
+                 command=self.manage_floor_transitions,
+                 bg='#FF6B35', fg='white', font=('Arial', 10, 'bold'),
+                 padx=15, pady=8).pack(side=tk.LEFT, padx=5)
+        
+        tk.Frame(bottom_frame, width=2, bg='gray').pack(side=tk.LEFT, fill=tk.Y, padx=10)
         
         tk.Button(bottom_frame, text="➖ Usuń węzeł", 
                  command=self.delete_node,
@@ -239,30 +264,71 @@ class MapManager:
                 self.map_data = json.load(f)
             
             self.map_filename = filename
-            self.all_paths = self.map_data.get('paths', [])
-            self.all_connections = self.map_data.get('connections', [])
             
-            # Wczytaj istniejące etykiety jeśli są
-            self.point_labels = self.map_data.get('point_labels', {})
-            
-            # Policz punkty
-            total_points = sum(len(path['points']) for path in self.all_paths)
-            labeled_points = len(self.point_labels)
-            
-            self.info_label['text'] = (f"✓ Wczytano: {len(self.all_paths)} ścieżek, "
-                                      f"{total_points} punktów | "
-                                      f"Etykiet: {labeled_points}")
+            # Sprawdź czy to nowy format wielopiętrowy
+            if 'floors' in self.map_data and 'building_info' in self.map_data:
+                # Nowy format - multi-floor
+                self.floors = self.map_data.get('floors', {})
+                self.floor_transitions = self.map_data.get('floor_transitions', [])
+                self.building_info = self.map_data.get('building_info', {})
+                
+                # Załaduj dane aktualnego piętra
+                self.load_floor_data(self.current_floor)
+                
+                total_points = sum(sum(len(path['points']) for path in floor_data.get('paths', [])) 
+                                  for floor_data in self.floors.values())
+                total_labels = sum(len(floor_data.get('point_labels', {})) 
+                                  for floor_data in self.floors.values())
+                
+                self.info_label['text'] = (f"✓ Budynek wielopiętrowy | "
+                                          f"Punkty: {total_points} | "
+                                          f"Etykiety: {total_labels} | "
+                                          f"Przejścia: {len(self.floor_transitions)}")
+                
+                messagebox.showinfo("Mapa wczytana",
+                                  f"✓ Wczytano budynek wielopiętrowy:\n\n"
+                                  f"Piętra: {', '.join(self.floors.keys())}\n"
+                                  f"Punkty: {total_points}\n"
+                                  f"Etykiety: {total_labels}\n"
+                                  f"Przejścia między piętrami: {len(self.floor_transitions)}")
+            else:
+                # Stary format - single floor
+                self.all_paths = self.map_data.get('paths', [])
+                self.all_connections = self.map_data.get('connections', [])
+                self.point_labels = self.map_data.get('point_labels', {})
+                
+                # Konwertuj do nowego formatu
+                self.floors = {
+                    "0": {
+                        "paths": self.all_paths,
+                        "connections": self.all_connections,
+                        "point_labels": self.point_labels
+                    }
+                }
+                self.floor_transitions = []
+                self.building_info = {
+                    "name": "Budynek",
+                    "floors": ["0"],
+                    "floor_names": {"0": "Parter"}
+                }
+                
+                total_points = sum(len(path['points']) for path in self.all_paths)
+                labeled_points = len(self.point_labels)
+                
+                self.info_label['text'] = (f"✓ Wczytano: {len(self.all_paths)} ścieżek, "
+                                          f"{total_points} punktów | "
+                                          f"Etykiet: {labeled_points}")
+                
+                messagebox.showinfo("Mapa wczytana",
+                                  f"Wczytano mapę (stary format):\n\n"
+                                  f"Ścieżki: {len(self.all_paths)}\n"
+                                  f"Punkty: {total_points}\n"
+                                  f"Połączenia: {len(self.all_connections)}\n"
+                                  f"Etykiety: {labeled_points}\n\n"
+                                  f"💡 Zostanie zapisana jako wielopiętrowa")
             
             self.status_label['text'] = f"Mapa: {filename} | Kliknij na punkt aby dodać etykietę"
-            
             self.draw_map()
-            
-            messagebox.showinfo("Mapa wczytana",
-                              f"Wczytano mapę:\n\n"
-                              f"Ścieżki: {len(self.all_paths)}\n"
-                              f"Punkty: {total_points}\n"
-                              f"Połączenia: {len(self.all_connections)}\n"
-                              f"Etykiety: {labeled_points}")
             return True
             
         except Exception as e:
@@ -336,6 +402,200 @@ class MapManager:
                         tags=('label', f'label_{point_id}')
                     )
     
+    def change_floor(self, event=None):
+        """Zmienia aktywne piętro"""
+        # Zapisz dane aktualnego piętra
+        self.save_current_floor_data()
+        
+        # Reset zaznaczenia i sidebara
+        self.selected_point = None
+        self.selected_point_label['text'] = "Brak"
+        self.coords_label['text'] = "x: -, y: -"
+        self.connections_label['text'] = "-"
+        self.current_label_text['text'] = "Brak"
+        self.current_label_text['fg'] = '#999'
+        
+        # Pobierz nowe piętro
+        floor_text = self.floor_var.get()
+        new_floor = floor_text.split()[0]  # "0 (Parter)" -> "0"
+        self.current_floor = new_floor
+        
+        # Załaduj dane nowego piętra
+        self.load_floor_data(new_floor)
+        
+        # Odśwież mapę
+        self.draw_map()
+        
+        floor_names = {"0": "Parter", "1": "Piętro 1", "2": "Piętro 2"}
+        self.status_label['text'] = f"🏢 {floor_names.get(new_floor, new_floor)} | Kliknij na punkt aby dodać etykietę"
+    
+    def save_current_floor_data(self):
+        """Zapisuje dane aktualnego piętra do struktury floors"""
+        if self.current_floor in self.floors:
+            self.floors[self.current_floor] = {
+                'paths': self.all_paths,
+                'connections': self.all_connections,
+                'point_labels': self.point_labels
+            }
+    
+    def load_floor_data(self, floor):
+        """Ładuje dane wybranego piętra"""
+        if floor in self.floors:
+            floor_data = self.floors[floor]
+            self.all_paths = floor_data.get('paths', [])
+            self.all_connections = floor_data.get('connections', [])
+            self.point_labels = floor_data.get('point_labels', {})
+        else:
+            # Utwórz puste piętro
+            self.all_paths = []
+            self.all_connections = []
+            self.point_labels = {}
+            self.floors[floor] = {
+                'paths': [],
+                'connections': [],
+                'point_labels': {}
+            }
+    
+    def manage_floor_transitions(self):
+        """Okno zarządzania przejściami między piętrami"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Zarządzanie przejściami między piętrami")
+        dialog.geometry("700x600")
+        dialog.transient(self.root)
+        dialog.grab_set()
+        
+        # Nagłówek
+        tk.Label(dialog, text="🔗 Przejścia między piętrami",
+                font=('Arial', 14, 'bold'), bg='#FF6B35', fg='white',
+                pady=10).pack(fill=tk.X)
+        
+        # Lista przejść
+        list_frame = tk.Frame(dialog)
+        list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        tk.Label(list_frame, text="Istniejące przejścia:", 
+                font=('Arial', 11, 'bold')).pack(anchor=tk.W, pady=5)
+        
+        # Scrollable listbox
+        scroll = tk.Scrollbar(list_frame)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        transitions_listbox = tk.Listbox(list_frame, yscrollcommand=scroll.set,
+                                        font=('Arial', 10), height=15)
+        transitions_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scroll.config(command=transitions_listbox.yview)
+        
+        # Wypełnij listę
+        for i, trans in enumerate(self.floor_transitions):
+            icon = "🪜" if trans['type'] == 'stairs' else "🛗"
+            text = (f"{icon} {trans['name']} | "
+                   f"Piętro {trans['from_floor']} (punkt {trans['from_point']}) → "
+                   f"Piętro {trans['to_floor']} (punkt {trans['to_point']})")
+            transitions_listbox.insert(tk.END, text)
+        
+        # Przyciski akcji
+        button_frame = tk.Frame(dialog)
+        button_frame.pack(fill=tk.X, padx=10, pady=10)
+        
+        def add_transition():
+            add_transition_dialog(dialog)
+        
+        def remove_transition():
+            selection = transitions_listbox.curselection()
+            if not selection:
+                messagebox.showwarning("Brak wyboru", "Wybierz przejście do usunięcia")
+                return
+            
+            idx = selection[0]
+            trans = self.floor_transitions[idx]
+            result = messagebox.askyesno("Usuwanie",
+                                        f"Czy na pewno usunąć przejście:\n{trans['name']}?")
+            if result:
+                self.floor_transitions.pop(idx)
+                transitions_listbox.delete(idx)
+                messagebox.showinfo("Usunięto", "Przejście zostało usunięte")
+        
+        def add_transition_dialog(parent):
+            """Dialog dodawania nowego przejścia"""
+            add_dialog = tk.Toplevel(parent)
+            add_dialog.title("Dodaj przejście")
+            add_dialog.geometry("400x400")
+            add_dialog.transient(parent)
+            add_dialog.grab_set()
+            
+            tk.Label(add_dialog, text="Typ przejścia:", font=('Arial', 10, 'bold')).pack(pady=(10, 5))
+            transition_type = tk.StringVar(value="stairs")
+            ttk.Radiobutton(add_dialog, text="🪜 Schody", variable=transition_type, value="stairs").pack()
+            ttk.Radiobutton(add_dialog, text="🛗 Winda", variable=transition_type, value="elevator").pack()
+            
+            tk.Label(add_dialog, text="Nazwa:", font=('Arial', 10, 'bold')).pack(pady=(10, 5))
+            name_entry = tk.Entry(add_dialog, width=30)
+            name_entry.pack()
+            name_entry.insert(0, "Schody główne")
+            
+            tk.Label(add_dialog, text="Z piętra:", font=('Arial', 10, 'bold')).pack(pady=(10, 5))
+            from_floor_var = tk.StringVar(value="0")
+            ttk.Combobox(add_dialog, textvariable=from_floor_var, 
+                        values=list(self.floors.keys()), state='readonly', width=10).pack()
+            
+            tk.Label(add_dialog, text="Na piętro:", font=('Arial', 10, 'bold')).pack(pady=(10, 5))
+            to_floor_var = tk.StringVar(value="1")
+            ttk.Combobox(add_dialog, textvariable=to_floor_var,
+                        values=list(self.floors.keys()), state='readonly', width=10).pack()
+            
+            tk.Label(add_dialog, text="ID punktu na piętrze źródłowym:", 
+                    font=('Arial', 10)).pack(pady=(10, 5))
+            from_point_entry = tk.Entry(add_dialog, width=15)
+            from_point_entry.pack()
+            
+            tk.Label(add_dialog, text="ID punktu na piętrze docelowym:",
+                    font=('Arial', 10)).pack(pady=(5, 5))
+            to_point_entry = tk.Entry(add_dialog, width=15)
+            to_point_entry.pack()
+            
+            def save_new_transition():
+                if not from_point_entry.get() or not to_point_entry.get():
+                    messagebox.showerror("Błąd", "Podaj ID punktów!")
+                    return
+                
+                transition = {
+                    "id": f"transition_{len(self.floor_transitions) + 1}",
+                    "type": transition_type.get(),
+                    "name": name_entry.get(),
+                    "from_floor": from_floor_var.get(),
+                    "to_floor": to_floor_var.get(),
+                    "from_point": from_point_entry.get(),
+                    "to_point": to_point_entry.get(),
+                    "travel_time": 15 if transition_type.get() == "elevator" else 30
+                }
+                self.floor_transitions.append(transition)
+                
+                # Dodaj do listboxa
+                icon = "🪜" if transition['type'] == 'stairs' else "🛗"
+                text = (f"{icon} {transition['name']} | "
+                       f"Piętro {transition['from_floor']} (punkt {transition['from_point']}) → "
+                       f"Piętro {transition['to_floor']} (punkt {transition['to_point']})")
+                transitions_listbox.insert(tk.END, text)
+                
+                messagebox.showinfo("Sukces", f"Dodano przejście: {transition['name']}")
+                add_dialog.destroy()
+            
+            tk.Button(add_dialog, text="💾 Zapisz przejście", command=save_new_transition,
+                     bg='#4CAF50', fg='white', font=('Arial', 10, 'bold'),
+                     padx=20, pady=8).pack(pady=15)
+        
+        tk.Button(button_frame, text="➕ Dodaj przejście", command=add_transition,
+                 bg='#4CAF50', fg='white', font=('Arial', 10, 'bold'),
+                 padx=15, pady=8).pack(side=tk.LEFT, padx=5)
+        
+        tk.Button(button_frame, text="🗑️ Usuń przejście", command=remove_transition,
+                 bg='#f44336', fg='white', font=('Arial', 10, 'bold'),
+                 padx=15, pady=8).pack(side=tk.LEFT, padx=5)
+        
+        tk.Button(button_frame, text="✓ Zamknij", command=dialog.destroy,
+                 bg='#607D8B', fg='white', font=('Arial', 10, 'bold'),
+                 padx=15, pady=8).pack(side=tk.RIGHT, padx=5)
+    
     def find_point(self, point_id: str) -> Optional[dict]:
         """Znajduje punkt po ID"""
         for path in self.all_paths:
@@ -366,13 +626,18 @@ class MapManager:
     def select_point(self, point_id: str):
         """Zaznacza wybrany punkt"""
         # Odznacz poprzedni
-        if self.selected_point:
+        if self.selected_point and self.selected_point in self.point_objects:
             old_oval = self.point_objects[self.selected_point]['oval']
             old_color = '#4CAF50' if self.selected_point in self.point_labels else '#2196F3'
             self.canvas.itemconfig(old_oval, outline='#1565C0', width=2)
         
         # Zaznacz nowy
         self.selected_point = point_id
+        
+        # Sprawdź czy punkt istnieje w point_objects
+        if point_id not in self.point_objects:
+            return
+        
         oval = self.point_objects[point_id]['oval']
         self.canvas.itemconfig(oval, outline='#FF5722', width=4)
         
@@ -535,31 +800,50 @@ class MapManager:
                 bg='#e0e0e0', font=('Arial', 9), pady=5).pack(fill=tk.X)
     
     def save_all_changes(self):
-        """Zapisuje wszystkie zmiany do pliku JSON (etykiety, punkty, połączenia)"""
+        """Zapisuje wszystkie zmiany do pliku JSON (etykiety, punkty, połączenia) w formacie wielopiętrowym"""
         if not self.map_data or not self.map_filename:
             messagebox.showwarning("Brak mapy", "Najpierw wczytaj mapę!")
             return
         
         try:
-            # Aktualizuj dane mapy
-            self.map_data['paths'] = self.all_paths
-            self.map_data['connections'] = self.all_connections
-            self.map_data['point_labels'] = self.point_labels
+            # Zapisz dane aktualnego piętra przed zapisem
+            self.save_current_floor_data()
+            
+            # Przygotuj dane do zapisu w nowym formacie
+            save_data = {
+                'building_info': self.building_info if self.building_info else {
+                    'name': 'Budynek główny',
+                    'floors': list(self.floors.keys()),
+                    'floor_names': {f: f"Piętro {f}" for f in self.floors.keys()}
+                },
+                'floors': self.floors,
+                'floor_transitions': self.floor_transitions,
+                'metadata': {
+                    'version': '2.0',
+                    'multifloor_support': True,
+                    'last_modified': str(tk.Variable())  # timestamp
+                }
+            }
             
             # Zapisz
             with open(self.map_filename, 'w', encoding='utf-8') as f:
-                json.dump(self.map_data, f, indent=2, ensure_ascii=False)
+                json.dump(save_data, f, indent=2, ensure_ascii=False)
             
-            total_points = sum(len(path['points']) for path in self.all_paths)
+            # Statystyki
+            total_points = sum(sum(len(path['points']) for path in floor.get('paths', [])) 
+                              for floor in self.floors.values())
+            total_labels = sum(len(floor.get('point_labels', {})) for floor in self.floors.values())
+            total_connections = sum(len(floor.get('connections', [])) for floor in self.floors.values())
             
             messagebox.showinfo("Zapisano",
-                              f"Wszystkie zmiany zapisane do:\n{self.map_filename}\n\n"
-                              f"Ścieżki: {len(self.all_paths)}\n"
+                              f"✓ Wszystkie zmiany zapisane do:\n{self.map_filename}\n\n"
+                              f"Piętra: {len(self.floors)}\n"
                               f"Punkty: {total_points}\n"
-                              f"Połączenia: {len(self.all_connections)}\n"
-                              f"Etykiety: {len(self.point_labels)}")
+                              f"Połączenia: {total_connections}\n"
+                              f"Etykiety: {total_labels}\n"
+                              f"Przejścia między piętrami: {len(self.floor_transitions)}")
             
-            self.info_label['text'] = f"✓ Zapisano wszystkie zmiany"
+            self.info_label['text'] = f"✓ Zapisano wszystkie zmiany (format wielopiętrowy)"
             
         except Exception as e:
             messagebox.showerror("Błąd", f"Nie udało się zapisać:\n{e}")
